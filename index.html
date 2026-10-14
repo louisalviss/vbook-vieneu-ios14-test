@@ -12,6 +12,14 @@ p,small{color:#c0cbd5;line-height:1.55}
 textarea{box-sizing:border-box;width:100%;padding:12px;background:#111b25;color:#fff;font:inherit;border-radius:8px;border:1px solid #607080}
 button{background:#d8eafb;color:#102030;border:0;border-radius:8px;padding:12px 16px;font-size:1rem;font-weight:600;cursor:pointer;margin:6px 5px 6px 0}
 button.secondary{background:#34495d;color:#f1f1f1}
+button:disabled{opacity:.6;cursor:wait}
+.progress-box{background:#102635;border:1px solid #547b94;border-radius:12px;padding:14px;margin:12px 0;color:#eef8ff}
+.progress-box strong{display:block;font-size:1rem}
+.progress-box p{margin:8px 0;font-size:.9rem}
+progress{width:100%;height:16px;accent-color:#65c3ed;border-radius:8px}
+#progressDetail{overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+#progressPercent{font-weight:600;color:#b9e8fa}
+
 pre{font-family:ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;max-height:250px;overflow:auto}
 audio{width:100%}
 #checkResult{font-size:.84rem;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -21,6 +29,12 @@ audio{width:100%}
 <textarea id="sentence" rows="3">Đêm ấy, cơn mưa kéo dài không dứt.</textarea>
 <p><small>Chỉ dùng văn bản tiếng Việt, tối đa 140 ký tự mỗi lần thử; số, tên nước ngoài có thể chưa phát âm đúng. Hãy tải model bằng Wi-Fi.</small></p>
 <button id="run">Tải model & tạo WAV</button>
+<div class="progress-box" role="status" aria-live="polite" aria-atomic="false">
+<strong id="progressStage">Sẵn sàng tải model</strong>
+<p id="progressDetail">Sau khi nhấn, tiến trình sẽ xuất hiện tại đây. Lần đầu cần Wi-Fi để tải khoảng 282 MB.</p>
+<progress id="progressBar" max="100" value="0"></progress>
+<div id="progressPercent">0%</div>
+</div>
 <audio controls id="audio"></audio></article>
 <article><h2>2. Kiểm tra ngoại tuyến</h2>
 <p>Sau khi tổng hợp thành công, bật chế độ máy bay, tải lại trang và bấm Tải model & tạo WAV một lần nữa.</p>
@@ -30,4 +44,34 @@ audio{width:100%}
 <pre id="log">Sẵn sàng. Nhấn nút bên trên để kiểm thử.</pre>
 <textarea rows="5" id="reportText" style="display:none"></textarea>
 <small>Chỉ dữ liệu và model được tải xuống. Nội dung nhập và audio được tạo trong trình duyệt.</small></article>
-</main><script type="module" src="/src/main.js"></script></body></html>
+</main>
+<script>
+(function(){
+  let started=false;
+  const stage=()=>document.getElementById('progressStage');
+  const detail=()=>document.getElementById('progressDetail');
+  document.getElementById('run').addEventListener('click',()=>{
+    if(started)return;
+    started=true;
+    stage().textContent='Đã nhận lệnh tải';
+    detail().textContent='Đang khởi động engine trên trình duyệt…';
+    setTimeout(()=>{
+      if(!window.__nanoProbe || window.__nanoProbe.status==='idle'){
+        stage().textContent='Không khởi động được JavaScript';
+        detail().textContent='Vui lòng tải lại trang, thử Chrome/Safari và sao chép báo cáo lỗi.';
+        started=false;
+      }
+    },7000);
+  },true);
+  window.addEventListener('error',e=>{
+    if(e.message && stage()){
+      stage().textContent='Lỗi JavaScript';
+      detail().textContent=e.message.slice(0,260);
+    }
+  });
+  window.addEventListener('unhandledrejection',e=>{
+    if(stage()){stage().textContent='Lỗi xử lý';detail().textContent=String(e.reason||'Unknown').slice(0,260);}
+  });
+})();
+</script>
+<script type="module" src="/src/main.js"></script></body></html>
