@@ -1,4 +1,4 @@
-const STATIC='vbook-ios14-stage-static-20261014';
+const STATIC='vbook-ios14-stage-static-20261014-r2';
 const MODELS='vbook-nano-web-remote-models-v1';
 const REV='aba295eb96a6fa6003ebe417cc1f2802a7adc1dc';
 const PREFIX='/pnnbao-ump/VieNeu-TTS-v3-Nano/resolve/'+REV+'/';
@@ -35,10 +35,11 @@ self.addEventListener('fetch',event=>{
    const found=await c.match(event.request,{ignoreVary:true});
    if(found)return found;
    const r=await fetch(event.request);
-   if(r.ok) {
-     if(isModel) event.waitUntil(c.put(event.request,r.clone()).catch(()=>{}));
-     else event.waitUntil(c.put(event.request,r.clone()));
+   if(r.ok && !isModel) {
+     event.waitUntil(c.put(event.request,r.clone()));
    }
+   // Model downloads are streamed and verified by the UI before an explicit
+   // CacheStorage.put, so a large model is never silently cached twice.
    return r;
  })());
 });
