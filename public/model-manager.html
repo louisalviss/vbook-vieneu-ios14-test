@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#162431">
+<title>VBook · Quản lý model VieNeu</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;color-scheme:dark}
+body{margin:0;background:#101820;color:#f0f3f8}
+main{max-width:650px;margin:auto;padding:22px 18px 50px}
+h1{font-size:1.4rem}
+.card{padding:18px;border:1px solid #48596d;border-radius:12px;background:#1d2935;margin:15px 0}
+p{line-height:1.6;color:#d1d9e1}
+button,a.action{display:inline-block;border:0;border-radius:9px;padding:12px 15px;margin:6px 7px 6px 0;background:#d8eafb;color:#102030;font:600 1rem system-ui;text-decoration:none}
+button.secondary{background:#34495d;color:#f1f1f1}
+button.danger{background:#66383e;color:white;border:1px solid #a76870}
+button:disabled{opacity:.6}
+#result{white-space:pre-wrap;overflow-wrap:anywhere;border-radius:9px;padding:13px;background:#142634;line-height:1.7;min-height:85px}
+small{color:#bbcada}
+</style>
+</head>
+<body>
+<main>
+<h1>VBook · Quản lý bộ nhớ giọng đọc</h1>
+<p>Trang quản lý riêng, không cần tải engine TTS. Các model được lưu trong bộ nhớ website của Chrome trên iPhone.</p>
+<div class="card">
+  <h2>Model VieNeu offline</h2>
+  <div id="result" aria-live="polite">Đang kiểm tra dữ liệu đã lưu…</div>
+  <button id="check">Kiểm tra model đã lưu</button>
+  <button class="danger" id="delete">Xóa 4 model offline</button>
+  <p><small>Chỉ xóa model VieNeu của trang thử nghiệm này. Không xóa sách, dữ liệu các website khác, hoặc profile giọng đã mở.</small></p>
+</div>
+<div class="card">
+  <h2>Giao diện vẫn chưa cập nhật?</h2>
+  <button class="secondary" id="refresh">Làm mới giao diện VBook</button>
+  <p><small>Xóa riêng cache giao diện cũ và cập nhật Service Worker, không xóa 4 model đã tải.</small></p>
+</div>
+<a class="action" id="home" href="./">Về VBook VieNeu</a>
+</main>
+<script>
+'use strict';
+const CACHE='vbook-nano-web-remote-models-v1';
+const ROOT='https://huggingface.co/pnnbao-ump/VieNeu-TTS-v3-Nano/resolve/aba295eb96a6fa6003ebe417cc1f2802a7adc1dc/';
+const NAMES=['text_encoder','duration_predictor','vector_estimator','codec_decoder'];
+const SIZES=[26519943,727809,155132418,99319941];
+const $=id=>document.getElementById(id);
+const show=t=>{$('result').textContent=t;};
+let running=false;
+const reportErr=e=>show('Lỗi truy cập bộ nhớ: '+String(e?.message||e));
+async function inspect(){
+  if(!('caches' in window)){show('Trình duyệt không hỗ trợ Cache Storage.');return null;}
+  const cache=await caches.open(CACHE);
+  const found=await Promise.all(NAMES.map(name=>cache.match(ROOT+name+'.onnx',{ignoreVary:true}).then(Boolean)));
+  const count=found.filter(Boolean).length;
+  const stored=found.reduce((sum,exists,i)=>sum+(exists?SIZES[i]:0),0);
+  const rows=NAMES.map((name,i)=>(found[i]?'Đã lưu: ':'Chưa lưu: ')+name);
+  let quota='';
+  try{const estimate=await navigator.storage.estimate();quota='\nDung lượng website theo ước tính: '+((estimate.usage||0)/1048576).toFixed(1)+' MB';}catch{}
+  show('Đã lưu '+count+'/4 model\nKhoảng '+(stored/1048576).toFixed(1)+' MB model\n\n'+rows.join('\n')+quota);
+  return {count,stored};
+}
+$('check').addEventListener('click',()=>inspect().catch(reportErr));
+$('delete').addEventListener('click',async()=>{
+ if(running)return;
+ running=true;
+ try{
+   const current=await inspect();
+   if(!current||current.count===0){show('Không có model VieNeu nào cần xóa.');return;}
+   if(!window.confirm('Xóa '+current.count+'/4 model VieNeu đã lưu (~'+(current.stored/1048576).toFixed(1)+' MB)? Sau đó muốn đọc bằng VieNeu cần tải lại model.'))return;
+   $('delete').disabled=true;show('Đang xóa bộ nhớ model VieNeu…');
+   await caches.delete(CACHE);
+   const check=await inspect();
+   if(check?.count)throw Error('Vẫn còn '+check.count+' model sau khi xóa.');
+   show('Đã xóa model VieNeu khỏi bộ nhớ offline (0/4).\nKhông ảnh hưởng các website khác.\nHãy đóng tab Chrome để giải phóng RAM.');
+ }catch(e){reportErr(e);}
+ finally{running=false;$('delete').disabled=false;}
+});
+$('refresh').addEventListener('click',async()=>{
+ if(running)return;running=true;$('refresh').disabled=true;
+ try{
+   show('Đang cập nhật giao diện, giữ nguyên các model đã lưu…');
+   const keys=await caches.keys();
+   const old=keys.filter(n=>n.startsWith('vbook-ios14-stage-static-'));
+   await Promise.all(old.map(n=>caches.delete(n)));
+   if('serviceWorker' in navigator){
+     const registration=await navigator.serviceWorker.getRegistration('./');
+     if(registration)await registration.update();
+   }
+   show('Đã xóa '+old.length+' cache giao diện cũ. Model được giữ nguyên. Đang mở lại…');
+   location.replace('./?fresh=manager-'+Date.now()+location.hash);
+ }catch(e){reportErr(e);}
+ finally{running=false;$('refresh').disabled=false;}
+});
+inspect().catch(reportErr);
+</script>
+</body>
+</html>
