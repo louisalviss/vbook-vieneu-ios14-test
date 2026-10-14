@@ -1,4 +1,4 @@
-const STATIC='vbook-ios14-stage-static-20261014-r3';
+const STATIC='vbook-ios14-stage-static-20261014-r4';
 const MODELS='vbook-nano-web-remote-models-v1';
 const REV='aba295eb96a6fa6003ebe417cc1f2802a7adc1dc';
 const PREFIX='/pnnbao-ump/VieNeu-TTS-v3-Nano/resolve/'+REV+'/';
@@ -22,6 +22,8 @@ self.addEventListener('install',event=>event.waitUntil((async()=>{
   await self.skipWaiting();
 })()));
 self.addEventListener('activate',e=>e.waitUntil((async()=>{
+  const keys=await caches.keys();
+  await Promise.all(keys.filter(k=>k.startsWith('vbook-ios14-stage-static-') && k!==STATIC).map(k=>caches.delete(k)));
   await self.clients.claim();
 })()));
 self.addEventListener('fetch',event=>{
@@ -32,14 +34,25 @@ self.addEventListener('fetch',event=>{
  if(!isModel && !isStatic)return;
  event.respondWith((async()=>{
    const c=await caches.open(isModel?MODELS:STATIC);
-   const found=await c.match(event.request,{ignoreVary:true,ignoreSearch:!isModel});
+   const matchOpts={ignoreVary:true,ignoreSearch:!isModel};
+   // Network-first for page navigation fixes old HTML being served forever
+   // even after the GitHub Pages deployment has published a newer UI.
+   if(isStatic && event.request.mode==='navigate'){
+     try{
+       const response=await fetch(event.request,{cache:'no-store'});
+       if(response.ok){
+         event.waitUntil(c.put(event.request,response.clone()));
+         return response;
+       }
+     }catch{}
+     const cached=await c.match(event.request,matchOpts) || await c.match(relative('index.html'));
+     return cached || Response.error();
+   }
+   const found=await c.match(event.request,matchOpts);
    if(found)return found;
    const r=await fetch(event.request);
-   if(r.ok && !isModel) {
-     event.waitUntil(c.put(event.request,r.clone()));
-   }
-   // Model downloads are streamed and verified by the UI before an explicit
-   // CacheStorage.put, so a large model is never silently cached twice.
+   if(r.ok && !isModel)event.waitUntil(c.put(event.request,r.clone()));
+   // Stream model downloads to explicit model cache once, with UI progress.
    return r;
  })());
 });
