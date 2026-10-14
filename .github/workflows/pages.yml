@@ -22,6 +22,15 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run build
+      - name: Build isolated EPUB Library with Piper and VieNeu
+        run: |
+          cd library
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run check
+          npm run build
+          npm run verify:dist
+          mkdir -p ../dist/library
+          cp -a dist/. ../dist/library/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -1,0 +1,26 @@
+{
+  "name": "vbook-web-offline-reader",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/prepare-assets.mjs && vite --host 0.0.0.0",
+    "build": "node scripts/prepare-assets.mjs && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "verify:dist": "node scripts/verify-dist.mjs",
+    "check": "node --check src/main.js && node --check src/db.js && node --check src/tts.js && node --check src/text.js && node --check src/wav.js && node --check src/audio-cache.js && node --check src/offline-check.js && node --check vite.config.js && node scripts/check-dom-contract.mjs && node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@diffusionstudio/piper-wasm": "1.0.0",
+    "@mintplex-labs/piper-tts-web": "1.0.5",
+    "epubjs": "0.3.93",
+    "onnxruntime-web": "1.18.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.21",
+    "vite-plugin-pwa": "^0.20.5"
+  },
+  "overrides": {
+    "@xmldom/xmldom": "^0.9.12"
+  }
+}

@@ -1,0 +1,10 @@
+import {readFile} from 'node:fs/promises';
+const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+const source=await readFile(new URL('../src/main.js',import.meta.url),'utf8');
+const found=[...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]);
+const names=new Set(found);
+if(found.length !== names.size) throw new Error('Duplicate HTML IDs in view');
+const referenced = [...source.matchAll(/\b(?:el|\$\s*=\s*\{[^}]*:el)\('([^']+)'\)/g)].map(x=>x[1]);
+const missing=[...new Set(referenced)].filter(x=>!names.has(x));
+if(missing.length) throw new Error(`DOM controls missing: ${missing.join(', ')}`);
+console.log(`DOM_CONTRACT_PASS: ${found.length} unique IDs; ${referenced.length} direct references`);
