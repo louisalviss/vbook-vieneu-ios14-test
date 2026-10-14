@@ -4,7 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
   base: '/vbook-vieneu-ios14-test/library/',
   plugins: [VitePWA({
-    registerType: 'autoUpdate',
+    registerType: 'prompt',
     includeAssets: ['icons/book.svg'],
     manifest: {
       name: 'VBook Web · VieNeu staging',
@@ -20,7 +20,7 @@ export default defineConfig({
       navigateFallback: '/vbook-web-offline-r3/index.html',
       cleanupOutdatedCaches: true,
       clientsClaim: true,
-      skipWaiting: true
+      skipWaiting: false
     }
   })],
   build: { target: 'es2020', outDir: 'dist', sourcemap: false }
