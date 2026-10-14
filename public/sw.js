@@ -32,7 +32,7 @@ self.addEventListener('fetch',event=>{
  if(!isModel && !isStatic)return;
  event.respondWith((async()=>{
    const c=await caches.open(isModel?MODELS:STATIC);
-   const found=await c.match(event.request);
+   const found=await c.match(event.request,{ignoreVary:true});
    if(found)return found;
    const r=await fetch(event.request);
    if(r.ok) {
