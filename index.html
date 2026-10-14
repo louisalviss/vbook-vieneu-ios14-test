@@ -13,6 +13,8 @@ textarea{box-sizing:border-box;width:100%;padding:12px;background:#111b25;color:
 button{background:#d8eafb;color:#102030;border:0;border-radius:8px;padding:12px 16px;font-size:1rem;font-weight:600;cursor:pointer;margin:6px 5px 6px 0}
 button.secondary{background:#34495d;color:#f1f1f1}
 button:disabled{opacity:.6;cursor:wait}
+button.danger{background:#62363a;color:#fff;border:1px solid #ac6369}
+#deleteResult{font-size:.84rem;white-space:pre-wrap;overflow-wrap:anywhere}
 .progress-box{background:#102635;border:1px solid #547b94;border-radius:12px;padding:14px;margin:12px 0;color:#eef8ff}
 .progress-box strong{display:block;font-size:1rem}
 .progress-box p{margin:8px 0;font-size:.9rem}
@@ -39,7 +41,10 @@ audio{width:100%}
 <article><h2>2. Kiểm tra ngoại tuyến</h2>
 <p>Sau khi tổng hợp thành công, bật chế độ máy bay, tải lại trang và bấm Tải model & tạo WAV một lần nữa.</p>
 <button class="secondary" id="offlineCheck">Kiểm tra cache model</button>
-<p id="checkResult">Chưa kiểm tra</p></article>
+<p id="checkResult">Chưa kiểm tra</p>
+<hr style="border:0;border-top:1px solid #415261;margin:16px 0">
+<button class="danger" id="deleteModels">Xóa model offline (~282 MB)</button>
+<p id="deleteResult" role="status" aria-live="polite">Chỉ xóa 4 model VieNeu đã lưu trên thiết bị này; không xóa sách hoặc dữ liệu website khác.</p></article>
 <article><h2>3. Báo cáo</h2><button class="secondary" id="copyReport">Sao chép kết quả</button>
 <pre id="log">Sẵn sàng. Nhấn nút bên trên để kiểm thử.</pre>
 <textarea rows="5" id="reportText" style="display:none"></textarea>
