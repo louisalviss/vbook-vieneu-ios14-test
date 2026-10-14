@@ -1,4 +1,4 @@
-const STATIC='vbook-ios14-stage-static-20261014-r2';
+const STATIC='vbook-ios14-stage-static-20261014-r3';
 const MODELS='vbook-nano-web-remote-models-v1';
 const REV='aba295eb96a6fa6003ebe417cc1f2802a7adc1dc';
 const PREFIX='/pnnbao-ump/VieNeu-TTS-v3-Nano/resolve/'+REV+'/';
@@ -32,7 +32,7 @@ self.addEventListener('fetch',event=>{
  if(!isModel && !isStatic)return;
  event.respondWith((async()=>{
    const c=await caches.open(isModel?MODELS:STATIC);
-   const found=await c.match(event.request,{ignoreVary:true});
+   const found=await c.match(event.request,{ignoreVary:true,ignoreSearch:!isModel});
    if(found)return found;
    const r=await fetch(event.request);
    if(r.ok && !isModel) {
