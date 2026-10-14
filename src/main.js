@@ -224,3 +224,46 @@ $('#offlineCheck').addEventListener('click',async()=>{
  try{const e=await navigator.storage.estimate();quota=Math.round((e.usage||0)/1048576)+'MB / '+Math.round((e.quota||0)/1048576)+'MB';}catch{}
  $('#checkResult').textContent=result.join(' · ')+'\nBộ nhớ: '+quota+'\nBước gần nhất: '+(localStorage.getItem('vbook-ios14-last-step')||'none');
 });
+
+// Delete only this preview's model cache. Do not clear the entire site
+// (which could contain other GitHub Pages apps under the same origin).
+$('#deleteModels').addEventListener('click',async()=>{
+ const button=$('#deleteModels'), result=$('#deleteResult');
+ if(busy){
+   result.textContent='Đang tổng hợp hoặc tải model. Hãy hoàn tất thao tác trước khi xóa.';
+   return;
+ }
+ let saved=0;
+ try{
+   const cache=await caches.open(MODEL_CACHE);
+   for(const name of MODEL_NAMES)if(await cache.match(modelUrl(name),{ignoreVary:true}))saved++;
+ }catch(e){
+   result.textContent='Không đọc được cache: '+String(e.message||e);
+   return;
+ }
+ if(!saved){
+   result.textContent='Không có model VieNeu đã lưu. Không cần xóa.';
+   return;
+ }
+ if(!confirm('Xóa '+saved+'/4 model VieNeu offline (tối đa ~282 MB) trên thiết bị này? Sau đó cần tải lại khi tạo giọng. Không xóa sách hay dữ liệu website khác.'))return;
+ button.disabled=true;
+ result.textContent='Đang xóa riêng cache VieNeu…';
+ try{
+   const deleted=await caches.delete(MODEL_CACHE);
+   let remaining=0;
+   const opened=await caches.open(MODEL_CACHE);
+   for(const name of MODEL_NAMES){
+     if(await opened.match(modelUrl(name),{ignoreVary:true}))remaining++;
+   }
+   if(remaining)throw Error('Vẫn còn '+remaining+' model trong cache; vui lòng tải lại trang và kiểm tra.');
+   const message=deleted
+     ?'Đã xóa '+saved+'/4 model VieNeu khỏi bộ nhớ offline. Các website và sách khác được giữ nguyên. Đóng tab để giải phóng thêm RAM.'
+     :'Không tìm thấy vùng cache VieNeu cần xóa.';
+   result.textContent=message;
+   $('#checkResult').textContent='Model VieNeu: chưa lưu (0/4).';
+   status('Đã xóa model offline','Lần tạo giọng sau cần tải lại model qua Wi-Fi.',0);
+   report('removed model cache '+saved+'/4');
+ }catch(e){
+   result.textContent='Lỗi khi xóa model: '+String(e.message||e);
+ }finally{button.disabled=false;}
+});
