@@ -15,6 +15,7 @@ const $={
   audio:el('audioPlayer'),voiceDot:el('voiceDot'),status:el('audioStatus')
 };
 let activeBook=null,activeRendition=null,activeId=null,activeTitle='';
+let readerReady=false;
 let playlist=[],playIndex=0,readToken=0,currentAudioUrl=null,chapterAudioBlob=null;
 let toastTimer;
 const progressText='Model phải được tải & kiểm thử ít nhất một lần khi có Internet.';
@@ -60,6 +61,7 @@ async function importFile(file){
   await refreshLibrary();notify('Đã lưu EPUB trên thiết bị.');await openBook(id);
 }
 async function closeBook(){
+  readerReady=false;
   stopReading();
   try{activeRendition?.destroy();}catch{}
   try{activeBook?.destroy();}catch{}
@@ -92,6 +94,7 @@ async function openBook(id){
     const saved=await getPosition(id);await rendition.display(saved?.cfi||undefined);
     await renderToc();
     status(await hasVoice()?'Model '+currentVoice()+' đã lưu. Nhấn Đọc chương để kiểm thử.':progressText);
+    readerReady=true;
     el('speakBtn').disabled=false;el('chapterAudioBtn').disabled=false;
   } catch(error){await closeBook();notify(`Lỗi mở sách: ${error.message}`);showLibrary();}
 }
@@ -131,7 +134,7 @@ async function readyChapterText(){
   throw Error('Nội dung chương chưa sẵn sàng. Hãy chuyển trang rồi thử lại.');
 }
 function resetAudio(){if(currentAudioUrl){URL.revokeObjectURL(currentAudioUrl);currentAudioUrl=null;}$.audio.removeAttribute('src');$.audio.load();}
-function stopReading(){readToken++;playlist=[];playIndex=0;$.audio.pause();resetAudio();chapterAudioBlob=null;el('downloadAudioBtn').disabled=true;el('chapterAudioBtn').disabled=false;el('stopBtn').disabled=true;el('speakBtn').disabled=false;$.voiceDot.classList.remove('active');}
+function stopReading(){readToken++;playlist=[];playIndex=0;$.audio.pause();resetAudio();chapterAudioBlob=null;el('downloadAudioBtn').disabled=true;el('chapterAudioBtn').disabled=!readerReady;el('stopBtn').disabled=true;el('speakBtn').disabled=!readerReady;$.voiceDot.classList.remove('active');}
 async function nextSpeechPart(token){
   if(token!==readToken)return;
   if(playIndex>=playlist.length){status('Đã đọc hết phần văn bản của chương đang hiển thị.');stopReading();return;}
