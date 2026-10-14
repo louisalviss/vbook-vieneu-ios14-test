@@ -70,12 +70,14 @@ async function openBook(id){
   try {
     if(activeId===id && activeRendition){showReader();return;}
     await closeBook();
+    el('speakBtn').disabled=true;el('chapterAudioBtn').disabled=true;
     const payload=await getPayload(id);if(!payload?.blob)throw Error('Không tìm thấy dữ liệu EPUB được lưu.');
     const book=ePub(await payload.blob.arrayBuffer());await book.opened;
     activeBook=book;activeId=id;
     const metadata=await book.loaded.metadata;activeTitle=metadata?.title||'Sách của tôi';
     el('readingTitle').textContent=activeTitle;
     showReader();
+    status('Đang nạp nội dung EPUB. Nút đọc sẽ được mở khi sách sẵn sàng…');
     const rendition=book.renderTo('epubReader',{width:'100%',height:'100%',flow:'paginated',spread:'none',allowScriptedContent:false});
     activeRendition=rendition;
     rendition.themes.default({'body':{'font-family':'Georgia, serif !important','font-size':'19px !important','line-height':'1.75 !important','color':'#302b23 !important'},'p':{'line-height':'1.75 !important'}});
@@ -90,6 +92,7 @@ async function openBook(id){
     const saved=await getPosition(id);await rendition.display(saved?.cfi||undefined);
     await renderToc();
     status(await hasVoice()?'Model '+currentVoice()+' đã lưu. Nhấn Đọc chương để kiểm thử.':progressText);
+    el('speakBtn').disabled=false;el('chapterAudioBtn').disabled=false;
   } catch(error){await closeBook();notify(`Lỗi mở sách: ${error.message}`);showLibrary();}
 }
 async function renderToc(){
