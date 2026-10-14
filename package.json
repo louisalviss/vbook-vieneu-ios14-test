@@ -1,0 +1,16 @@
+{
+  "name": "vbook-vieneu-ios14-test",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "test": "node tests/smoke.cjs"
+  },
+  "dependencies": {
+    "onnxruntime-web": "1.18.0"
+  },
+  "devDependencies": {
+    "vite": "5.4.21"
+  }
+}
