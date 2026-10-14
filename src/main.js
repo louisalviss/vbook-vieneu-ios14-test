@@ -9,6 +9,65 @@ const MODEL_REV='aba295eb96a6fa6003ebe417cc1f2802a7adc1dc';
 const modelUrl=name=>'https://huggingface.co/pnnbao-ump/VieNeu-TTS-v3-Nano/resolve/'+MODEL_REV+'/'+name+'.onnx';
 const $ = q => document.querySelector(q);
 const messages = [];
+const MODEL_SIZES={text_encoder:26519943,duration_predictor:727809,vector_estimator:155132418,codec_decoder:99319941};
+const MODEL_NAMES=Object.keys(MODEL_SIZES);
+const TOTAL_MODEL_BYTES=Object.values(MODEL_SIZES).reduce((a,b)=>a+b,0);
+const MODEL_CACHE='vbook-nano-web-remote-models-v1';
+let busy=false, cachedBytes=0, lastProgressTime=0;
+const humanBytes=n=>(n/1048576).toFixed(1)+' MB';
+function status(stage,detail='',pct=null){
+ const a=$('#progressStage'),b=$('#progressDetail'),c=$('#progressBar'),d=$('#progressPercent');
+ if(a)a.textContent=stage;
+ if(b)b.textContent=detail;
+ if(c&&pct!==null&&Number.isFinite(pct))c.value=Math.max(0,Math.min(100,pct));
+ if(d&&pct!==null&&Number.isFinite(pct))d.textContent=Math.round(pct)+'%';
+ if(window.__nanoProbe)window.__nanoProbe.stage=stage;
+ try{localStorage.setItem('vbook-ios14-last-step',stage+': '+detail.slice(0,100));}catch{}
+}
+const paint=()=>new Promise(resolve=>requestAnimationFrame(()=>resolve()));
+async function ensureModel(name,index){
+ const url=modelUrl(name),cache=await caches.open(MODEL_CACHE);
+ const prior=await cache.match(url,{ignoreVary:true});
+ const prefix='Model '+index+'/'+MODEL_NAMES.length+': '+name;
+ if(prior){
+   cachedBytes+=MODEL_SIZES[name];
+   status(prefix+' (đã lưu)',humanBytes(cachedBytes)+' / '+humanBytes(TOTAL_MODEL_BYTES),cachedBytes/TOTAL_MODEL_BYTES*85);
+   report('cache hit '+name); return;
+ }
+ status('Đang kết nối tải '+prefix,'Chờ phản hồi máy chủ; tổng tải 281,7 MB',cachedBytes/TOTAL_MODEL_BYTES*85);
+ await paint();
+ let response;
+ try{response=await fetch(url,{mode:'cors'});}
+ catch(e){throw new Error('Không kết nối được nơi lưu model '+name+': '+e.message);}
+ if(!response.ok)throw new Error('Không tải được '+name+': HTTP '+response.status);
+ if(!response.body||typeof response.body.getReader!=='function')throw new Error('Trình duyệt không hỗ trợ tải theo luồng cho '+name);
+ const reader=response.body.getReader();
+ let received=0, last=performance.now();
+ const stream=new ReadableStream({
+   async pull(controller){
+     const part=await reader.read();
+     if(part.done){controller.close();return;}
+     received+=part.value.byteLength;
+     controller.enqueue(part.value);
+     const now=performance.now();
+     if(now-last>140){
+       status('Đang tải '+prefix,humanBytes(received)+' / '+humanBytes(MODEL_SIZES[name])+' · Tổng '+humanBytes(cachedBytes+received)+' / '+humanBytes(TOTAL_MODEL_BYTES),Math.min(85,(cachedBytes+received)/TOTAL_MODEL_BYTES*85));
+       last=now;
+     }
+   },
+   cancel(reason){return reader.cancel(reason);}
+ });
+ try{
+   await cache.put(url,new Response(stream,{status:200,headers:{'Content-Type':'application/octet-stream'}}));
+ }catch(e){
+   throw new Error('Không lưu được model '+name+' vào bộ nhớ offline: '+e.message);
+ }
+ if(received<MODEL_SIZES[name]*0.98)throw new Error('Tải thiếu dữ liệu '+name+': '+humanBytes(received));
+ cachedBytes+=received;
+ status('Đã lưu '+prefix,humanBytes(cachedBytes)+' / '+humanBytes(TOTAL_MODEL_BYTES),Math.min(85,cachedBytes/TOTAL_MODEL_BYTES*85));
+ report('saved '+name+' '+humanBytes(received));
+}
+
 function report(s){messages.push(s);$('#log').textContent=messages.join('\n');console.log('[NanoBrowser]',s);}
 window.__nanoProbe = { status:'idle',messages,error:null,features:{} };
 if('serviceWorker' in navigator) navigator.serviceWorker.register(asset('sw.js'),{scope:BASE}).catch(e=>console.warn('SW',e));
@@ -63,27 +122,44 @@ async function load(url) {
   return session;
 }
 async function run() {
+  if(busy)return;
+  busy=true;cachedBytes=0;lastProgressTime=0;
+  const runBtn=$('#run');
+  runBtn.disabled=true;runBtn.textContent='Đang tải / xử lý…';
+  window.__nanoProbe.status='loading';window.__nanoProbe.error=null;window.__nanoProbe.features={};
+  status('Đã nhận lệnh tải','Đang khởi động engine; giao diện sẽ cập nhật từng bước…',0);
   report('starting '+navigator.userAgent);
-  try{localStorage.setItem('vbook-ios14-last-step','STARTING');}catch{}
-  if('serviceWorker' in navigator) await navigator.serviceWorker.ready;
-  window.__nanoProbe.status='loading';
+  await paint();
   try{
+    status('Đang mở profile giọng','Kiểm tra khóa mở giọng và cache cục bộ…',1);
     const profile=await voiceProfile();
     report('voice profile loaded locally');
+    status('Profile giọng sẵn sàng','Đang nạp bộ phiên âm tiếng Việt…',2);
+    if('serviceWorker' in navigator){
+      status('Kiểm tra ứng dụng offline','Đang kích hoạt bộ lưu offline (tối đa 30 giây)…',3);
+      try{
+        await Promise.race([navigator.serviceWorker.ready,new Promise((_,reject)=>setTimeout(()=>reject(Error('Service Worker không sẵn sàng')),30000))]);
+        report('service worker ready');
+      }catch(e){throw new Error('Không kích hoạt được lưu offline: '+e.message+'. Hãy tải lại trang.');}
+    }
     const lexicon=await (await fetch(asset('g2p-lexicon.json'))).json();
     const sentence=$('#sentence').value.trim();
     if(sentence.length>140) throw Error('PoC hiện giới hạn 140 ký tự mỗi lần thử.');
     const {phonemes,spokenTokens}=phonemizeVietnamese(sentence,lexicon);
     report('offline G2P '+spokenTokens+' words: '+phonemes.slice(0,180));
+    for(let i=0;i<MODEL_NAMES.length;i++)await ensureModel(MODEL_NAMES[i],i+1);
+    status('Model đã lưu đủ','Đang khởi tạo bộ tổng hợp ONNX từ model offline…',86);
     const sessions={};
-    for(const name of ['text_encoder','duration_predictor','vector_estimator','codec_decoder']){
-      const url=modelUrl(name);
+    for(let i=0;i<MODEL_NAMES.length;i++){
+      const name=MODEL_NAMES[i],url=modelUrl(name);
+      status('Nạp model '+(i+1)+'/4: '+name,'Đã tải xong; đang chuẩn bị bộ nhớ tổng hợp…',86+i*2);
       report('loading '+name);
-      try{localStorage.setItem('vbook-ios14-last-step','loading:'+name);}catch{}
+      await paint();
       sessions[name]=await load(url);
       window.__nanoProbe.features[name]=true;
     }
     report('4 graphs loaded, starting inference');
+    status('Đang tổng hợp giọng','Thực thi ONNX trên thiết bị; bước 0/'+profile.steps,94);
     window.__nanoProbe.status='inferencing';
     const ids=idsFromPhonemes(phonemes,profile),L=ids.length;
     const idsT=new ort.Tensor('int64',BigInt64Array.from(ids.map(BigInt)),[1,L]);
@@ -109,6 +185,7 @@ async function run() {
       const arr=new Float32Array(x.data.length);
       for(let j=0;j<arr.length;j++)arr[j]=x.data[j]+dt*(vn.data[j]+profile.cfg*(v.data[j]-vn.data[j]));
       x=tensorF32(arr,[1,144,frames]);
+      status('Đang tạo tiếng nói','Bước '+(i+1)+'/'+profile.steps+' · Đang xử lý âm thanh…',94+(i+1)/profile.steps*5);
       if(i===0||i===profile.steps-1)report('flow step '+(i+1)+'/'+profile.steps+' '+((performance.now()-stepStart)/1000).toFixed(2)+'s');
     }
     const audio=(await sessions.codec_decoder.run({x})).wav;
@@ -117,9 +194,15 @@ async function run() {
     $('#audio').src=URL.createObjectURL(blob);
     window.__nanoProbe.status='pass';window.__nanoProbe.audioBytes=blob.size;
     report('PASS WAV '+blob.size+' bytes');
+    status('PASS — Đã tạo giọng','WAV '+Math.round(blob.size/1024)+' KB · nhấn nút phát ở trên để nghe.',100);
     try{localStorage.setItem('vbook-ios14-last-step','PASS');}catch{}
-  }catch(e){window.__nanoProbe.status='fail';window.__nanoProbe.error=String(e.stack||e);report('FAIL '+String(e.stack||e).slice(0,900));
-    try{localStorage.setItem('vbook-ios14-last-step','FAIL '+String(e.message).slice(0,180));}catch{}}
+  }catch(e){
+    window.__nanoProbe.status='fail';window.__nanoProbe.error=String(e.stack||e);
+    report('FAIL '+String(e.stack||e).slice(0,900));
+    status('Lỗi — không thể tiếp tục',String(e.message||e).slice(0,450),null);
+  }finally{
+    busy=false;runBtn.disabled=false;runBtn.textContent='Tải model & tạo WAV';
+  }
 }
 $('#run').addEventListener('click',run);
 window.__runNano = run;
