@@ -23,6 +23,8 @@ const all=await readdir(root);
 const sw=all.find(x=>/^sw\.js$/.test(x));
 if(!sw)throw Error('PWA service worker missing');
 const swText=await readFile(path.join(root,sw),'utf8');
+if(!swText.includes('/vbook-vieneu-ios14-test/library/index.html'))throw Error('Service Worker offline navigation fallback points outside isolated Library');
+if(swText.includes('/vbook-web-offline-r3/index.html'))throw Error('Obsolete production route leaked into Library service worker');
 for(const relative of ['runtime/manifest.json','runtime/piper_phonemize.data','runtime/piper_phonemize.wasm']) {
   if(!swText.includes(relative)) throw Error(`Required offline asset missing from service-worker precache: ${relative}`);
 }

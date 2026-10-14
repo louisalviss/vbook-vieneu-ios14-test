@@ -17,7 +17,7 @@ export default defineConfig({
     workbox: {
       globPatterns: ['**/*.{html,js,css,json,wasm,data,svg,png,epub,webmanifest}'],
       maximumFileSizeToCacheInBytes: 40 * 1024 * 1024,
-      navigateFallback: '/vbook-web-offline-r3/index.html',
+      navigateFallback: '/vbook-vieneu-ios14-test/library/index.html',
       cleanupOutdatedCaches: true,
       clientsClaim: true,
       skipWaiting: false
