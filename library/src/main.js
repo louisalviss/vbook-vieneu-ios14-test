@@ -115,6 +115,18 @@ function chapterText(){
   }).join(' ');
   return cleanText(text);
 }
+// The EPUB iframe can appear before epub.js finishes populating its body.
+async function readyChapterText(){
+  for(let attempt=0;attempt<50;attempt++){
+    try {
+      const source=chapterText();
+      if(source.length>8)return source;
+    }catch(e){if(attempt===49)throw e;}
+    status('Đang chờ nội dung chương EPUB hiển thị… ('+(attempt+1)+'/50)');
+    await new Promise(resolve=>setTimeout(resolve,200));
+  }
+  throw Error('Nội dung chương chưa sẵn sàng. Hãy chuyển trang rồi thử lại.');
+}
 function resetAudio(){if(currentAudioUrl){URL.revokeObjectURL(currentAudioUrl);currentAudioUrl=null;}$.audio.removeAttribute('src');$.audio.load();}
 function stopReading(){readToken++;playlist=[];playIndex=0;$.audio.pause();resetAudio();chapterAudioBlob=null;el('downloadAudioBtn').disabled=true;el('chapterAudioBtn').disabled=false;el('stopBtn').disabled=true;el('speakBtn').disabled=false;$.voiceDot.classList.remove('active');}
 async function nextSpeechPart(token){
@@ -134,7 +146,7 @@ async function nextSpeechPart(token){
 }
 async function beginSpeech(){
   let text;
-  try{text=chapterText();}catch(e){notify(e.message);return;}
+  try{text=await readyChapterText();}catch(e){status(e.message);notify(e.message);return;}
   const segments=splitForSpeech(text,preferredChunkLength());
   if(!segments.length){notify('Chưa trích được văn bản của chương.');return;}
   if(segments.length>350){notify('Chương dài; đọc tối đa 350 đoạn trong bản thử.');}
@@ -148,7 +160,7 @@ async function beginSpeech(){
 // background JS synthesis between sentences, although iOS may still interrupt.
 async function prepareChapterAudio(){
   let source;
-  try {source=chapterText();}catch(e){notify(e.message);return;}
+  try {source=await readyChapterText();}catch(e){status(e.message);notify(e.message);return;}
   const segments=splitForSpeech(source,preferredChunkLength());
   if(!segments.length){notify('Chưa có chữ để đọc.');return;}
   const maximum=80;
