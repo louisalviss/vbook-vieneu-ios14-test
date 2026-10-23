@@ -20,6 +20,11 @@ jobs:
         with:
           node-version: '20'
           cache: npm
+      - name: Test encrypted voice-profile packaging with synthetic data
+        run: |
+          python3 -m venv /tmp/vbook-profile-qa-venv
+          /tmp/vbook-profile-qa-venv/bin/python -m pip install -q cryptography==43.0.0
+          /tmp/vbook-profile-qa-venv/bin/python -m unittest discover -s tests -p test_voice_*.py -v
       - run: npm ci --ignore-scripts
       - run: npm run build
       - name: Build isolated EPUB Library with Piper and VieNeu
