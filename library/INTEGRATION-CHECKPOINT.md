@@ -21,4 +21,4 @@ Status: SOURCE_BUILD_PASS / LIVE_EPUB_TEST_PENDING / IPHONE14_PENDING.
 - Tested source suite 22/22 PASS, production build PASS, dist verification PASS, latest Pages deployment successful.
 - Fixed loading race (narration disabled until EPUB rendition ready, including voice switches), Vietnamese numeric headings (e.g. Chương 1, years), unintended auto-reloads on SW activation (registerType=prompt), and wrong offline navigation fallback; dist verification now fails if fallback reverts to old production path.
 - User iPhone 14 browser remains **DEVICE_NOT_TESTED**. Lock-screen playback, memory/eviction, and multi-chapter robustness are pending; keep existing Piper production untouched.
-- Local Chromium QA script on VPS (not published; reads device staging unlock key locally): `/opt/vbook-web-voice-lab/status-r2-qa/tests/library-live-r1.cjs`.
+- Reproducible Chromium QA source now preserved in GitHub at `tests/qa-library-offline.cjs`; it reads the unlock key only from `VBOOK_UNLOCK_KEY` environment variable and never embeds it in source. Historical VPS QA script: `/opt/vbook-web-voice-lab/status-r2-qa/tests/library-live-r1.cjs`.
