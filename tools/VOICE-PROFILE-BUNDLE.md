@@ -31,8 +31,10 @@ Automated synthetic-data QA:
 
 Tests cover invalid shapes, stale template speaker exclusion, AES-GCM
 round-trip, Node WebCrypto decryption compatibility, 0700/0600 file modes
-and refusing overwrite. Synthetic testing does not prove clone quality,
-offline synthesis, or device performance.
+and refusing overwrite. A mocked-clone end-to-end test additionally checks the full bundle structure,
+sample WAV copy across filesystems, cryptographic round trip, and receipt.
+Synthetic/mocked testing does not prove real voice-cloning quality,
+new-voice browser inference, or iPhone device performance.
 
 Promotion boundary: packaging does not publish or activate another voice.
 The existing staging app saves the decrypted profile under one localStorage
